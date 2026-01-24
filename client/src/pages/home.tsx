@@ -26,11 +26,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { createOrderSchema, type CreateOrderInput, type CreateOrderResponse, ItemType } from "@shared/schema";
 
-const boxTypes = ["Corrugated", "Rigid", "Folding Carton", "Custom"];
-const printTypes = ["Single Color", "Multi Color", "Full Color", "No Print"];
-const envelopeSizes = ["DL (110x220mm)", "C5 (162x229mm)", "C4 (229x324mm)", "A4 (210x297mm)", "Custom"];
-const bagSizes = ["Small (20x30cm)", "Medium (30x40cm)", "Large (40x50cm)", "Extra Large (50x60cm)", "Custom"];
-const doreTypes = ["Paper Handle", "Rope Handle", "Ribbon Handle", "Die Cut Handle", "No Handle"];
+const boxTypes = ["Top-Bottom", "Magnet", "Ribbon"];
+const boxPrintTypes = ["Plain", "Printed"];
+const envelopeSizes = ["Big100", "3½×4½", "Small New", "3×4", "Other"];
+const envelopePrintTypes = ["Plain", "Print"];
+const bagSizes = ["9×6×3", "D×C×B", "10×7×4", "10×8×4", "13×9×3", "12×10×4", "14×10×4", "11×16×4", "12×16×4", "16×12×4", "13×17×5", "Other"];
+const bagPrintTypes = ["Plain", "Print"];
+const doreTypes = ["Ribbon", "Rope"];
 
 export default function Home() {
   const { toast } = useToast();
@@ -406,7 +408,7 @@ export default function Home() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      {printTypes.map((type) => (
+                                      {boxPrintTypes.map((type) => (
                                         <SelectItem key={type} value={type}>
                                           {type}
                                         </SelectItem>
@@ -459,7 +461,7 @@ export default function Home() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      {printTypes.map((type) => (
+                                      {envelopePrintTypes.map((type) => (
                                         <SelectItem key={type} value={type}>
                                           {type}
                                         </SelectItem>
@@ -480,7 +482,7 @@ export default function Home() {
                               name={`items.${index}.doreType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Handle Type</FormLabel>
+                                  <FormLabel>Dore Type</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-dore-type-${index}`}>
@@ -536,7 +538,7 @@ export default function Home() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      {printTypes.map((type) => (
+                                      {bagPrintTypes.map((type) => (
                                         <SelectItem key={type} value={type}>
                                           {type}
                                         </SelectItem>
