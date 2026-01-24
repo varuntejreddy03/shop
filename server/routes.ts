@@ -65,7 +65,7 @@ export async function registerRoutes(
 
   app.get("/api/pdf/:filename", (req: Request, res: Response) => {
     try {
-      const { filename } = req.params;
+      const filename = req.params.filename as string;
       console.log(`[API] PDF download requested: ${filename}`);
 
       if (!filename.endsWith(".pdf") || filename.includes("..")) {
@@ -104,7 +104,7 @@ export async function registerRoutes(
 
   app.get("/api/orders/:id", (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid order ID" });
       }

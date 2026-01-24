@@ -54,7 +54,7 @@ export default function Home() {
   const createOrderMutation = useMutation({
     mutationFn: async (data: CreateOrderInput) => {
       const response = await apiRequest("POST", "/api/create-order", data);
-      return response as CreateOrderResponse;
+      return (await response.json()) as CreateOrderResponse;
     },
     onSuccess: (data) => {
       setSuccessData(data);
