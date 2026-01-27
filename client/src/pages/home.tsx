@@ -28,9 +28,9 @@ import { createOrderSchema, type CreateOrderInput, type CreateOrderResponse, Ite
 
 const boxTypes = ["Top-Bottom", "Magnet", "Ribbon"];
 const boxPrintTypes = ["Plain", "Printed"];
-const envelopeSizes = ["Big100", "3½×4½", "Small New", "3×4", "Other"];
+const envelopeSizes = ["Big100", "3 1/2 * 4 1/2", "Small New", "3*4", "Other"];
 const envelopePrintTypes = ["Plain", "Print"];
-const bagSizes = ["9×6×3", "D×C×B", "10×7×4", "10×8×4", "13×9×3", "12×10×4", "14×10×4", "11×16×4", "12×16×4", "16×12×4", "13×17×5", "Other"];
+const bagSizes = ["9*6*3", "D*C*B", "10*7*4", "10*8*4", "13*9*3", "12*10*4", "14*10*4", "11*16*4", "12*16*4", "16*12*4", "13*17*5", "Other"];
 const bagPrintTypes = ["Plain", "Print"];
 const doreTypes = ["Ribbon", "Rope"];
 
@@ -62,25 +62,32 @@ export default function Home() {
       setSuccessData(data);
       toast({
         title: "Order Created Successfully",
-        description: `Order #${data.orderId} has been saved and PDF generated.`,
+        description: `Order #${data.orderId} has been saved and ${data.pdfUrls.length} PDF(s) generated.`,
       });
 
-      console.log(`[Print] Opening PDF for Order #${data.orderId}: ${data.pdfUrl}`);
-      const pdfWindow = window.open(data.pdfUrl, "_blank");
-      if (pdfWindow) {
-        console.log(`[Print] PDF window opened, waiting for load to trigger print dialog`);
-        pdfWindow.onload = () => {
-          setTimeout(() => {
-            console.log(`[Print] Triggering print dialog for Order #${data.orderId}`);
-            pdfWindow.print();
-          }, 500);
-        };
-      } else {
-        console.warn(`[Print] Could not open PDF window - popup may have been blocked`);
+      // Open all PDFs and trigger print for each
+      data.pdfUrls.forEach((pdfInfo, index) => {
+        console.log(`[Print] Opening PDF for Order #${data.orderId}: ${pdfInfo.url}`);
+        setTimeout(() => {
+          const pdfWindow = window.open(pdfInfo.url, "_blank");
+          if (pdfWindow) {
+            console.log(`[Print] PDF window opened for ${pdfInfo.type}, waiting for load to trigger print dialog`);
+            pdfWindow.onload = () => {
+              setTimeout(() => {
+                console.log(`[Print] Triggering print dialog for ${pdfInfo.type} Order #${data.orderId}`);
+                pdfWindow.print();
+              }, 500);
+            };
+          } else {
+            console.warn(`[Print] Could not open PDF window for ${pdfInfo.type} - popup may have been blocked`);
+          }
+        }, index * 1000); // Stagger window opens to avoid blocking
+      });
+
+      if (data.pdfUrls.length > 0) {
         toast({
-          title: "Popup Blocked",
-          description: "Please allow popups to automatically open the print dialog, or use the View PDF button.",
-          variant: "destructive",
+          title: "Print Dialog",
+          description: "PDFs opened in new tabs. Please allow popups if blocked.",
         });
       }
 
@@ -157,28 +164,35 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           {successData && (
             <Card className="mb-6 border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
-              <CardContent className="flex items-center gap-4 py-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <CardContent className="py-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
+                    <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-green-800 dark:text-green-200" data-testid="text-success-message">
+                      Order #{successData.orderId} created successfully!
+                    </p>
+                    <p className="text-sm text-green-600 dark:text-green-400">
+                      {successData.pdfUrls.length} PDF(s) generated and ready for download.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-green-800 dark:text-green-200" data-testid="text-success-message">
-                    Order #{successData.orderId} created successfully!
-                  </p>
-                  <p className="text-sm text-green-600 dark:text-green-400">
-                    PDF has been generated and print dialog opened.
-                  </p>
+                <div className="flex flex-wrap gap-2 ml-14">
+                  {successData.pdfUrls.map((pdfInfo) => (
+                    <Button
+                      key={pdfInfo.type}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(pdfInfo.url, "_blank")}
+                      className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900"
+                      data-testid={`button-view-pdf-${pdfInfo.type.toLowerCase()}`}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      {pdfInfo.type} PDF
+                    </Button>
+                  ))}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(successData.pdfUrl, "_blank")}
-                  className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900"
-                  data-testid="button-view-pdf"
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  View PDF
-                </Button>
               </CardContent>
             </Card>
           )}
@@ -400,7 +414,7 @@ export default function Home() {
                               name={`items.${index}.printType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Print Type</FormLabel>
+                                  <FormLabel>Type</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-print-type-${index}`}>
@@ -429,7 +443,7 @@ export default function Home() {
                               name={`items.${index}.envelopeSize`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Envelope Size</FormLabel>
+                                  <FormLabel>Size</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-envelope-size-${index}`}>
@@ -453,7 +467,7 @@ export default function Home() {
                               name={`items.${index}.envelopePrintType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Print Type</FormLabel>
+                                  <FormLabel>Type</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-envelope-print-${index}`}>
@@ -482,7 +496,7 @@ export default function Home() {
                               name={`items.${index}.doreType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Dore Type</FormLabel>
+                                  <FormLabel>Dore Specifications</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-dore-type-${index}`}>
@@ -506,7 +520,7 @@ export default function Home() {
                               name={`items.${index}.bagSize`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Bag Size</FormLabel>
+                                  <FormLabel>Size</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-bag-size-${index}`}>
@@ -530,7 +544,7 @@ export default function Home() {
                               name={`items.${index}.bagPrintType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Print Type</FormLabel>
+                                  <FormLabel>Type</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-bag-print-${index}`}>

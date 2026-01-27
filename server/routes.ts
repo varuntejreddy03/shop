@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import path from "path";
 import fs from "fs";
 import { database } from "./database";
-import { generateOrderPdf, getPdfPath, pdfExists } from "./pdf-generator";
+import { generateOrderPdfs, getPdfPath, pdfExists } from "./pdf-generator";
 import { createOrderSchema, type CreateOrderResponse } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
@@ -36,19 +36,22 @@ export async function registerRoutes(
         throw new Error("Failed to retrieve order after creation");
       }
 
-      const pdfFilename = await generateOrderPdf(
+      const pdfInfos = await generateOrderPdfs(
         orderWithItems.order,
         orderWithItems.customer,
         orderWithItems.items
       );
 
-      database.updateOrderPdfPath(order.id, pdfFilename);
-      console.log(`[API] Order #${order.id} PDF path saved`);
+      // Store first PDF path for backwards compatibility
+      if (pdfInfos.length > 0) {
+        database.updateOrderPdfPath(order.id, pdfInfos[0].filename);
+      }
+      console.log(`[API] Order #${order.id} ${pdfInfos.length} PDF(s) generated`);
 
       const response: CreateOrderResponse = {
         success: true,
         orderId: order.id,
-        pdfUrl: `/api/pdf/${pdfFilename}`,
+        pdfUrls: pdfInfos,
         message: "Order created successfully",
       };
 

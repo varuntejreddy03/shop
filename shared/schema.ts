@@ -80,9 +80,15 @@ export interface OrderItemRecord {
   price: number;
 }
 
+export interface PdfInfo {
+  type: string;
+  url: string;
+  filename: string;
+}
+
 export interface CreateOrderResponse {
   success: boolean;
   orderId: number;
-  pdfUrl: string;
+  pdfUrls: PdfInfo[];
   message: string;
 }
