@@ -3,15 +3,6 @@ import fs from "fs";
 import path from "path";
 import type { Customer, Order, OrderItemRecord, PdfInfo } from "@shared/schema";
 
-/**
- * PDF Generation Notes:
- * - PDFs generated with pdf-lib using drawText() are inherently static and non-editable
- * - No form fields are created, so the output is automatically "flattened"
- * - The PDF is optimized for A4 printing with proper margins
- * - Black & white color scheme for thermal and laser printer compatibility
- * - Generates separate PDFs for each item type (Box, Envelope, Bag)
- */
-
 const PDF_OUTPUT_DIR = path.join(process.cwd(), "generated-pdfs");
 
 function ensurePdfDirectory() {
@@ -33,292 +24,409 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 }
 
-function getItemDetails(item: OrderItemRecord): { label: string; value: string }[] {
-  const data = JSON.parse(item.itemData);
-  const details: { label: string; value: string }[] = [];
-
-  switch (item.itemType) {
-    case "box":
-      details.push({ label: "Box Type", value: data.boxType || "N/A" });
-      details.push({ label: "Length", value: `${data.length}` });
-      details.push({ label: "Breadth", value: `${data.breadth}` });
-      details.push({ label: "Height", value: `${data.height}` });
-      details.push({ label: "Type", value: data.printType || "N/A" });
-      break;
-    case "envelope":
-      details.push({ label: "Size", value: data.envelopeSize || "N/A" });
-      details.push({ label: "Type", value: data.envelopePrintType || "N/A" });
-      break;
-    case "bag":
-      details.push({ label: "Dore Specifications", value: data.doreType || "N/A" });
-      details.push({ label: "Size", value: data.bagSize || "N/A" });
-      details.push({ label: "Type", value: data.bagPrintType || "N/A" });
-      break;
-  }
-
-  return details;
-}
-
-function getItemTypeTitle(itemType: string): string {
-  switch (itemType) {
-    case "box": return "BOX ORDER";
-    case "envelope": return "ENVELOPE ORDER";
-    case "bag": return "BAG ORDER";
-    default: return "ORDER";
+function drawCheckbox(page: any, x: number, y: number, checked: boolean, font: any) {
+  const size = 10;
+  page.drawRectangle({
+    x,
+    y: y - 2,
+    width: size,
+    height: size,
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 1,
+  });
+  if (checked) {
+    page.drawText("X", {
+      x: x + 2,
+      y: y,
+      size: 8,
+      font,
+      color: rgb(0, 0, 0),
+    });
   }
 }
 
-async function generateSingleTypePdf(
+function drawLabelValue(page: any, label: string, value: string, x: number, y: number, boldFont: any, regularFont: any) {
+  page.drawText(label, { x, y, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+  page.drawText(value, { x: x + 100, y, size: 10, font: regularFont, color: rgb(0, 0, 0) });
+}
+
+function drawSectionTitle(page: any, title: string, x: number, y: number, width: number, font: any) {
+  page.drawRectangle({
+    x,
+    y: y - 5,
+    width,
+    height: 20,
+    color: rgb(0.9, 0.9, 0.9),
+  });
+  page.drawText(title, {
+    x: x + 10,
+    y: y,
+    size: 11,
+    font,
+    color: rgb(0, 0, 0),
+  });
+}
+
+function drawSignatureLine(page: any, label: string, x: number, y: number, font: any) {
+  page.drawLine({
+    start: { x, y },
+    end: { x: x + 180, y },
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
+  });
+  page.drawText(label, {
+    x,
+    y: y - 15,
+    size: 9,
+    font,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+}
+
+async function generateBoxPdf(
   order: Order,
   customer: Customer,
-  items: OrderItemRecord[],
-  itemType: string
+  items: OrderItemRecord[]
 ): Promise<{ filename: string; bytes: Uint8Array }> {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4
   const { width, height } = page.getSize();
 
-  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   const margin = 50;
-  const lineHeight = 20;
+  const contentWidth = width - margin * 2;
   let y = height - margin;
 
-  const black = rgb(0, 0, 0);
-  const gray = rgb(0.4, 0.4, 0.4);
-  const lightGray = rgb(0.9, 0.9, 0.9);
-
-  // Header - Company Name
-  page.drawText("PRINT SOLUTIONS", {
-    x: margin,
+  // Title
+  const title = "BOX ORDER FORM";
+  const titleWidth = bold.widthOfTextAtSize(title, 18);
+  page.drawText(title, {
+    x: (width - titleWidth) / 2,
     y,
-    size: 28,
-    font: helveticaBold,
-    color: black,
+    size: 18,
+    font: bold,
+    color: rgb(0, 0, 0),
   });
+  y -= 40;
+
+  // Customer Details Section
+  drawSectionTitle(page, "CUSTOMER DETAILS", margin, y, contentWidth, bold);
   y -= 30;
 
-  page.drawText("Professional Printing Services", {
-    x: margin,
-    y,
-    size: 11,
-    font: helvetica,
-    color: gray,
-  });
-
-  // Order Type Header on right side
-  page.drawText(getItemTypeTitle(itemType), {
-    x: width - margin - 140,
-    y: height - margin,
-    size: 16,
-    font: helveticaBold,
-    color: black,
-  });
-
-  page.drawText(`Order #${order.id.toString().padStart(6, "0")}`, {
-    x: width - margin - 140,
-    y: height - margin - 20,
-    size: 12,
-    font: helvetica,
-    color: black,
-  });
-
+  drawLabelValue(page, "Customer Name:", customer.name, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Phone Number:", customer.phone, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Order Date:", formatDate(order.orderDate), margin + 10, y, bold, regular);
   y -= 35;
 
-  // Divider line
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: width - margin, y },
-    thickness: 2,
-    color: black,
-  });
+  // Process each box item
+  let totalQty = 0;
+  let totalPrice = 0;
 
-  y -= 35;
+  items.forEach((item, idx) => {
+    const data = JSON.parse(item.itemData);
+    totalQty += item.quantity;
+    totalPrice += item.quantity * item.price;
 
-  // Customer Information Box
-  page.drawRectangle({
-    x: margin,
-    y: y - 70,
-    width: width - margin * 2,
-    height: 80,
-    color: lightGray,
-  });
+    drawSectionTitle(page, `BOX DETAILS - Item ${idx + 1}`, margin, y, contentWidth, bold);
+    y -= 30;
 
-  page.drawText("CUSTOMER INFORMATION", {
-    x: margin + 15,
-    y: y - 5,
-    size: 12,
-    font: helveticaBold,
-    color: black,
-  });
+    // Box Type checkboxes
+    page.drawText("Box Type:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const boxTypes = ["Top-Bottom", "Magnet", "Ribbon"];
+    let checkX = margin + 80;
+    boxTypes.forEach((type) => {
+      drawCheckbox(page, checkX, y, data.boxType === type, regular);
+      page.drawText(type, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 80;
+    });
+    y -= 22;
 
-  y -= 25;
-
-  page.drawText("Name:", { x: margin + 15, y, size: 11, font: helveticaBold, color: black });
-  page.drawText(customer.name, { x: margin + 80, y, size: 11, font: helvetica, color: black });
-
-  page.drawText("Order Date:", { x: width / 2, y, size: 11, font: helveticaBold, color: black });
-  page.drawText(formatDate(order.orderDate), { x: width / 2 + 80, y, size: 11, font: helvetica, color: black });
-
-  y -= lineHeight;
-
-  page.drawText("Phone:", { x: margin + 15, y, size: 11, font: helveticaBold, color: black });
-  page.drawText(customer.phone, { x: margin + 80, y, size: 11, font: helvetica, color: black });
-
-  y -= 55;
-
-  // Items Section Header
-  page.drawText(`${getItemTypeTitle(itemType)} ITEMS`, {
-    x: margin,
-    y,
-    size: 14,
-    font: helveticaBold,
-    color: black,
-  });
-
-  y -= 25;
-
-  // Table Header
-  const tableHeaders = ["#", "Details", "Qty", "Price", "Total"];
-  const colWidths = [40, 280, 60, 70, 70];
-  
-  page.drawRectangle({
-    x: margin,
-    y: y - 18,
-    width: width - margin * 2,
-    height: 25,
-    color: lightGray,
-  });
-
-  let headerX = margin + 10;
-  tableHeaders.forEach((header, i) => {
-    page.drawText(header, {
-      x: headerX,
-      y: y - 12,
+    // Dimensions
+    page.drawText("Dimensions (cm):", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    page.drawText(`Length: ${data.length}   Breadth: ${data.breadth}   Height: ${data.height}`, {
+      x: margin + 110,
+      y,
       size: 10,
-      font: helveticaBold,
-      color: black,
+      font: regular,
+      color: rgb(0, 0, 0),
     });
-    headerX += colWidths[i];
+    y -= 22;
+
+    // Print Type checkboxes
+    page.drawText("Print Type:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const printTypes = ["Plain", "Printed"];
+    checkX = margin + 80;
+    printTypes.forEach((type) => {
+      drawCheckbox(page, checkX, y, data.printType === type, regular);
+      page.drawText(type, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 70;
+    });
+    y -= 22;
+
+    // Quantity and Price
+    page.drawText(`Quantity: ${item.quantity}`, { x: margin + 10, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    page.drawText(`Price per Unit: $${item.price.toFixed(2)}`, { x: margin + 150, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    y -= 30;
   });
 
+  // Summary Section
+  drawSectionTitle(page, "SUMMARY", margin, y, contentWidth, bold);
   y -= 30;
 
-  // Items
-  let grandTotal = 0;
+  page.drawText(`Total Quantity: ${totalQty}`, { x: margin + 10, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  page.drawText(`Total Price: $${totalPrice.toFixed(2)}`, { x: margin + 250, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  y -= 40;
 
-  items.forEach((item, index) => {
-    const details = getItemDetails(item);
-    const itemTotal = item.quantity * item.price;
-    grandTotal += itemTotal;
+  // Confirmation Section
+  drawSectionTitle(page, "CONFIRMATION", margin, y, contentWidth, bold);
+  y -= 50;
 
-    // Draw item number
-    let rowX = margin + 10;
-    page.drawText((index + 1).toString(), { x: rowX, y, size: 10, font: helvetica, color: black });
-    rowX += colWidths[0];
-
-    // Draw first detail in main row
-    if (details.length > 0) {
-      page.drawText(`${details[0].label}: ${details[0].value}`, { 
-        x: rowX, 
-        y, 
-        size: 10, 
-        font: helvetica, 
-        color: black 
-      });
-    }
-    rowX = margin + 10 + colWidths[0] + colWidths[1];
-
-    // Quantity
-    page.drawText(item.quantity.toString(), { x: rowX, y, size: 10, font: helvetica, color: black });
-    rowX += colWidths[2];
-
-    // Price
-    page.drawText(`$${item.price.toFixed(2)}`, { x: rowX, y, size: 10, font: helvetica, color: black });
-    rowX += colWidths[3];
-
-    // Total
-    page.drawText(`$${itemTotal.toFixed(2)}`, { x: rowX, y, size: 10, font: helveticaBold, color: black });
-
-    y -= lineHeight;
-
-    // Additional details on subsequent lines
-    for (let i = 1; i < details.length; i++) {
-      page.drawText(`${details[i].label}: ${details[i].value}`, {
-        x: margin + 10 + colWidths[0],
-        y,
-        size: 9,
-        font: helvetica,
-        color: gray,
-      });
-      y -= 16;
-    }
-
-    // Line separator between items
-    y -= 5;
-    page.drawLine({
-      start: { x: margin, y: y + 10 },
-      end: { x: width - margin, y: y + 10 },
-      thickness: 0.5,
-      color: lightGray,
-    });
-    y -= 10;
-  });
-
-  // Total Section
-  y -= 15;
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: width - margin, y },
-    thickness: 1,
-    color: black,
-  });
-
-  y -= 25;
-
-  page.drawText("TOTAL:", {
-    x: width - margin - 160,
-    y,
-    size: 16,
-    font: helveticaBold,
-    color: black,
-  });
-  page.drawText(`$${grandTotal.toFixed(2)}`, {
-    x: width - margin - 80,
-    y,
-    size: 16,
-    font: helveticaBold,
-    color: black,
-  });
-
-  // Footer
-  const footerY = 50;
-  page.drawLine({
-    start: { x: margin, y: footerY + 15 },
-    end: { x: width - margin, y: footerY + 15 },
-    thickness: 0.5,
-    color: gray,
-  });
-
-  page.drawText("Thank you for your business!", {
-    x: margin,
-    y: footerY,
-    size: 10,
-    font: helvetica,
-    color: gray,
-  });
-
-  page.drawText(`Generated: ${new Date().toLocaleString()}`, {
-    x: width - margin - 150,
-    y: footerY,
-    size: 9,
-    font: helvetica,
-    color: gray,
-  });
+  drawSignatureLine(page, "Customer Signature", margin + 10, y, regular);
+  drawSignatureLine(page, "Authorized Signature", margin + 280, y, regular);
 
   const pdfBytes = await pdfDoc.save();
-  const filename = `order_${order.id}_${itemType}_${sanitizeFilename(customer.name)}.pdf`;
+  const filename = `order_${order.id}_box_${sanitizeFilename(customer.name)}.pdf`;
+
+  return { filename, bytes: pdfBytes };
+}
+
+async function generateEnvelopePdf(
+  order: Order,
+  customer: Customer,
+  items: OrderItemRecord[]
+): Promise<{ filename: string; bytes: Uint8Array }> {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const { width, height } = page.getSize();
+
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const margin = 50;
+  const contentWidth = width - margin * 2;
+  let y = height - margin;
+
+  // Title
+  const title = "ENVELOPE ORDER FORM";
+  const titleWidth = bold.widthOfTextAtSize(title, 18);
+  page.drawText(title, {
+    x: (width - titleWidth) / 2,
+    y,
+    size: 18,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  y -= 40;
+
+  // Customer Details Section
+  drawSectionTitle(page, "CUSTOMER DETAILS", margin, y, contentWidth, bold);
+  y -= 30;
+
+  drawLabelValue(page, "Customer Name:", customer.name, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Phone Number:", customer.phone, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Order Date:", formatDate(order.orderDate), margin + 10, y, bold, regular);
+  y -= 35;
+
+  let totalQty = 0;
+  let totalPrice = 0;
+
+  items.forEach((item, idx) => {
+    const data = JSON.parse(item.itemData);
+    totalQty += item.quantity;
+    totalPrice += item.quantity * item.price;
+
+    drawSectionTitle(page, `ENVELOPE DETAILS - Item ${idx + 1}`, margin, y, contentWidth, bold);
+    y -= 30;
+
+    // Size checkboxes - Row 1
+    page.drawText("Size:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const sizes1 = ["Big100", "3 1/2 * 4 1/2", "Small New"];
+    let checkX = margin + 50;
+    sizes1.forEach((size) => {
+      drawCheckbox(page, checkX, y, data.envelopeSize === size, regular);
+      page.drawText(size, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 100;
+    });
+    y -= 20;
+
+    // Size checkboxes - Row 2
+    const sizes2 = ["3*4", "Other"];
+    checkX = margin + 50;
+    sizes2.forEach((size) => {
+      drawCheckbox(page, checkX, y, data.envelopeSize === size, regular);
+      page.drawText(size, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 100;
+    });
+    y -= 22;
+
+    // Type checkboxes
+    page.drawText("Type:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const types = ["Plain", "Print"];
+    checkX = margin + 50;
+    types.forEach((type) => {
+      drawCheckbox(page, checkX, y, data.envelopePrintType === type, regular);
+      page.drawText(type, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 70;
+    });
+    y -= 22;
+
+    page.drawText(`Quantity: ${item.quantity}`, { x: margin + 10, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    page.drawText(`Price per Unit: $${item.price.toFixed(2)}`, { x: margin + 150, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    y -= 30;
+  });
+
+  // Summary Section
+  drawSectionTitle(page, "SUMMARY", margin, y, contentWidth, bold);
+  y -= 30;
+
+  page.drawText(`Total Quantity: ${totalQty}`, { x: margin + 10, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  page.drawText(`Total Price: $${totalPrice.toFixed(2)}`, { x: margin + 250, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  y -= 40;
+
+  // Confirmation Section
+  drawSectionTitle(page, "CONFIRMATION", margin, y, contentWidth, bold);
+  y -= 50;
+
+  drawSignatureLine(page, "Customer Signature", margin + 10, y, regular);
+  drawSignatureLine(page, "Authorized Signature", margin + 280, y, regular);
+
+  const pdfBytes = await pdfDoc.save();
+  const filename = `order_${order.id}_envelope_${sanitizeFilename(customer.name)}.pdf`;
+
+  return { filename, bytes: pdfBytes };
+}
+
+async function generateBagPdf(
+  order: Order,
+  customer: Customer,
+  items: OrderItemRecord[]
+): Promise<{ filename: string; bytes: Uint8Array }> {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const { width, height } = page.getSize();
+
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const margin = 50;
+  const contentWidth = width - margin * 2;
+  let y = height - margin;
+
+  // Title
+  const title = "BAG ORDER FORM";
+  const titleWidth = bold.widthOfTextAtSize(title, 18);
+  page.drawText(title, {
+    x: (width - titleWidth) / 2,
+    y,
+    size: 18,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  y -= 40;
+
+  // Customer Details Section
+  drawSectionTitle(page, "CUSTOMER DETAILS", margin, y, contentWidth, bold);
+  y -= 30;
+
+  drawLabelValue(page, "Customer Name:", customer.name, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Phone Number:", customer.phone, margin + 10, y, bold, regular);
+  y -= 20;
+  drawLabelValue(page, "Order Date:", formatDate(order.orderDate), margin + 10, y, bold, regular);
+  y -= 35;
+
+  let totalQty = 0;
+  let totalPrice = 0;
+
+  items.forEach((item, idx) => {
+    const data = JSON.parse(item.itemData);
+    totalQty += item.quantity;
+    totalPrice += item.quantity * item.price;
+
+    drawSectionTitle(page, `BAG DETAILS - Item ${idx + 1}`, margin, y, contentWidth, bold);
+    y -= 30;
+
+    // Dore Type checkboxes
+    page.drawText("Dore Type:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const doreTypes = ["Ribbon", "Rope"];
+    let checkX = margin + 80;
+    doreTypes.forEach((type) => {
+      drawCheckbox(page, checkX, y, data.doreType === type, regular);
+      page.drawText(type, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 70;
+    });
+    y -= 22;
+
+    // Bag Size checkboxes - Row 1
+    page.drawText("Bag Size:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const sizes1 = ["9*6*3", "D*C*B", "10*7*4", "10*8*4"];
+    checkX = margin + 70;
+    sizes1.forEach((size) => {
+      drawCheckbox(page, checkX, y, data.bagSize === size, regular);
+      page.drawText(size, { x: checkX + 14, y, size: 8, font: regular, color: rgb(0, 0, 0) });
+      checkX += 65;
+    });
+    y -= 18;
+
+    // Bag Size checkboxes - Row 2
+    const sizes2 = ["13*9*3", "12*10*4", "14*10*4", "11*16*4"];
+    checkX = margin + 70;
+    sizes2.forEach((size) => {
+      drawCheckbox(page, checkX, y, data.bagSize === size, regular);
+      page.drawText(size, { x: checkX + 14, y, size: 8, font: regular, color: rgb(0, 0, 0) });
+      checkX += 65;
+    });
+    y -= 18;
+
+    // Bag Size checkboxes - Row 3
+    const sizes3 = ["12*16*4", "16*12*4", "13*17*5", "Other"];
+    checkX = margin + 70;
+    sizes3.forEach((size) => {
+      drawCheckbox(page, checkX, y, data.bagSize === size, regular);
+      page.drawText(size, { x: checkX + 14, y, size: 8, font: regular, color: rgb(0, 0, 0) });
+      checkX += 65;
+    });
+    y -= 22;
+
+    // Print Type checkboxes
+    page.drawText("Print Type:", { x: margin + 10, y, size: 10, font: bold, color: rgb(0, 0, 0) });
+    const printTypes = ["Plain", "Print"];
+    checkX = margin + 80;
+    printTypes.forEach((type) => {
+      drawCheckbox(page, checkX, y, data.bagPrintType === type, regular);
+      page.drawText(type, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+      checkX += 70;
+    });
+    y -= 22;
+
+    page.drawText(`Quantity: ${item.quantity}`, { x: margin + 10, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    page.drawText(`Price per Unit: $${item.price.toFixed(2)}`, { x: margin + 150, y, size: 10, font: regular, color: rgb(0, 0, 0) });
+    y -= 30;
+  });
+
+  // Summary Section
+  drawSectionTitle(page, "SUMMARY", margin, y, contentWidth, bold);
+  y -= 30;
+
+  page.drawText(`Total Quantity: ${totalQty}`, { x: margin + 10, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  page.drawText(`Total Price: $${totalPrice.toFixed(2)}`, { x: margin + 250, y, size: 11, font: bold, color: rgb(0, 0, 0) });
+  y -= 40;
+
+  // Confirmation Section
+  drawSectionTitle(page, "CONFIRMATION", margin, y, contentWidth, bold);
+  y -= 50;
+
+  drawSignatureLine(page, "Customer Signature", margin + 10, y, regular);
+  drawSignatureLine(page, "Authorized Signature", margin + 280, y, regular);
+
+  const pdfBytes = await pdfDoc.save();
+  const filename = `order_${order.id}_bag_${sanitizeFilename(customer.name)}.pdf`;
 
   return { filename, bytes: pdfBytes };
 }
@@ -332,16 +440,14 @@ export async function generateOrderPdfs(
 
   console.log(`[PDF] Generating PDFs for Order #${order.id}`);
 
-  // Group items by type
   const boxItems = items.filter(item => item.itemType === "box");
   const envelopeItems = items.filter(item => item.itemType === "envelope");
   const bagItems = items.filter(item => item.itemType === "bag");
 
   const pdfInfos: PdfInfo[] = [];
 
-  // Generate PDF for each item type that has items
   if (boxItems.length > 0) {
-    const { filename, bytes } = await generateSingleTypePdf(order, customer, boxItems, "box");
+    const { filename, bytes } = await generateBoxPdf(order, customer, boxItems);
     const filePath = path.join(PDF_OUTPUT_DIR, filename);
     fs.writeFileSync(filePath, bytes);
     pdfInfos.push({ type: "Box", url: `/api/pdf/${filename}`, filename });
@@ -349,7 +455,7 @@ export async function generateOrderPdfs(
   }
 
   if (envelopeItems.length > 0) {
-    const { filename, bytes } = await generateSingleTypePdf(order, customer, envelopeItems, "envelope");
+    const { filename, bytes } = await generateEnvelopePdf(order, customer, envelopeItems);
     const filePath = path.join(PDF_OUTPUT_DIR, filename);
     fs.writeFileSync(filePath, bytes);
     pdfInfos.push({ type: "Envelope", url: `/api/pdf/${filename}`, filename });
@@ -357,7 +463,7 @@ export async function generateOrderPdfs(
   }
 
   if (bagItems.length > 0) {
-    const { filename, bytes } = await generateSingleTypePdf(order, customer, bagItems, "bag");
+    const { filename, bytes } = await generateBagPdf(order, customer, bagItems);
     const filePath = path.join(PDF_OUTPUT_DIR, filename);
     fs.writeFileSync(filePath, bytes);
     pdfInfos.push({ type: "Bag", url: `/api/pdf/${filename}`, filename });
