@@ -263,6 +263,11 @@ async function generateEnvelopePdf(
       page.drawText(size, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
       checkX += 100;
     });
+    
+    // Show custom size value if "Other" is selected
+    if (data.envelopeSize === "Other" && data.otherEnvelopeSize) {
+      page.drawText(`(${data.otherEnvelopeSize})`, { x: checkX + 14, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+    }
     y -= 22;
 
     // Type checkboxes
@@ -392,6 +397,12 @@ async function generateBagPdf(
       page.drawText(size, { x: checkX + 14, y, size: 8, font: regular, color: rgb(0, 0, 0) });
       checkX += 65;
     });
+    
+    // Show custom size value if "Other" is selected
+    if (data.bagSize === "Other" && data.otherBagSize) {
+      y -= 18;
+      page.drawText(`Custom Size: ${data.otherBagSize}`, { x: margin + 70, y, size: 9, font: regular, color: rgb(0, 0, 0) });
+    }
     y -= 22;
 
     // Print Type checkboxes

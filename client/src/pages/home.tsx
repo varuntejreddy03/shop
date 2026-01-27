@@ -462,6 +462,26 @@ export default function Home() {
                                 </FormItem>
                               )}
                             />
+                            {form.watch(`items.${index}.envelopeSize`) === "Other" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.otherEnvelopeSize`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Specify Size</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Enter custom size"
+                                        {...f}
+                                        value={f.value || ""}
+                                        data-testid={`input-other-envelope-size-${index}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
                             <FormField
                               control={form.control}
                               name={`items.${index}.envelopePrintType`}
@@ -539,6 +559,26 @@ export default function Home() {
                                 </FormItem>
                               )}
                             />
+                            {form.watch(`items.${index}.bagSize`) === "Other" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.otherBagSize`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Specify Size</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Enter custom size"
+                                        {...f}
+                                        value={f.value || ""}
+                                        data-testid={`input-other-bag-size-${index}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
                             <FormField
                               control={form.control}
                               name={`items.${index}.bagPrintType`}
