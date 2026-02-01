@@ -30,9 +30,14 @@ const boxTypes = ["Top-Bottom", "Magnet", "Ribbon"];
 const boxPrintTypes = ["Plain", "Printed"];
 const envelopeSizes = ["Big100", "3 1/2 * 4 1/2", "Small New", "3*4", "Other"];
 const envelopePrintTypes = ["Plain", "Print"];
+const envelopePrintMethods = ["Multi Color", "Screen Printing", "Other"];
 const bagSizes = ["9*6*3", "D*C*B", "10*7*4", "10*8*4", "13*9*3", "12*10*4", "14*10*4", "11*16*4", "12*16*4", "16*12*4", "13*17*5", "Other"];
 const bagPrintTypes = ["Plain", "Print"];
-const doreTypes = ["Ribbon", "Rope"];
+const bagPrintMethods = ["Single Color", "Multi Color"];
+const doreTypes = ["Rope", "Ribbon", "None"];
+const ropeColors = ["Gold", "Black", "White", "Red", "Other"];
+const ribbonColors = ["Gold", "Black", "White", "Other"];
+const laminationTypes = ["Gloss", "Matte"];
 
 export default function Home() {
   const { toast } = useToast();
@@ -44,7 +49,7 @@ export default function Home() {
       customerName: "",
       phoneNumber: "",
       orderDate: new Date().toISOString().split("T")[0],
-      items: [{ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", quantity: 1, price: 0 }],
+      items: [{ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", color: "", details: "", quantity: 1, price: 0 }],
     },
   });
 
@@ -95,7 +100,7 @@ export default function Home() {
         customerName: "",
         phoneNumber: "",
         orderDate: new Date().toISOString().split("T")[0],
-        items: [{ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", quantity: 1, price: 0 }],
+        items: [{ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", color: "", details: "", quantity: 1, price: 0 }],
       });
     },
     onError: (error: Error) => {
@@ -114,11 +119,11 @@ export default function Home() {
 
   const addItem = (type: "box" | "envelope" | "bag") => {
     if (type === "box") {
-      append({ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", quantity: 1, price: 0 });
+      append({ itemType: "box", boxType: "", length: 1, breadth: 1, height: 1, printType: "", color: "", details: "", quantity: 1, price: 0 });
     } else if (type === "envelope") {
-      append({ itemType: "envelope", envelopeSize: "", envelopePrintType: "", quantity: 1, price: 0 });
+      append({ itemType: "envelope", envelopeSize: "", envelopePrintType: "", envelopePrintMethod: "", envelopeCustomPrint: "", envelopeHeight: 1, envelopeWidth: 1, quantity: 1, price: 0 });
     } else {
-      append({ itemType: "bag", doreType: "", bagSize: "", bagPrintType: "", quantity: 1, price: 0 });
+      append({ itemType: "bag", bagSize: "", bagHeight: 1, bagWidth: 1, bagGusset: 1, doreType: "", handleColor: "", customHandleColor: "", bagPrintType: "", printMethod: "", laminationType: "", quantity: 1, price: 0 });
     }
   };
 
@@ -433,6 +438,46 @@ export default function Home() {
                                 </FormItem>
                               )}
                             />
+                            {form.watch(`items.${index}.printType`) === "Plain" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.color`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Color</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Enter color"
+                                        {...f}
+                                        value={f.value || ""}
+                                        data-testid={`input-color-${index}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            {form.watch(`items.${index}.printType`) === "Printed" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.details`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Details</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Enter details"
+                                        {...f}
+                                        value={f.value || ""}
+                                        data-testid={`input-details-${index}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
                           </>
                         )}
 
@@ -463,24 +508,48 @@ export default function Home() {
                               )}
                             />
                             {form.watch(`items.${index}.envelopeSize`) === "Other" && (
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.otherEnvelopeSize`}
-                                render={({ field: f }) => (
-                                  <FormItem>
-                                    <FormLabel>Specify Size</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        placeholder="Enter custom size"
-                                        {...f}
-                                        value={f.value || ""}
-                                        data-testid={`input-other-envelope-size-${index}`}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                              <>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.envelopeHeight`}
+                                  render={({ field: f }) => (
+                                    <FormItem>
+                                      <FormLabel>Height (cm)</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0.1"
+                                          step="0.1"
+                                          {...f}
+                                          onChange={(e) => f.onChange(parseFloat(e.target.value) || 1)}
+                                          data-testid={`input-envelope-height-${index}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.envelopeWidth`}
+                                  render={({ field: f }) => (
+                                    <FormItem>
+                                      <FormLabel>Width (cm)</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0.1"
+                                          step="0.1"
+                                          {...f}
+                                          onChange={(e) => f.onChange(parseFloat(e.target.value) || 1)}
+                                          data-testid={`input-envelope-width-${index}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </>
                             )}
                             <FormField
                               control={form.control}
@@ -506,6 +575,52 @@ export default function Home() {
                                 </FormItem>
                               )}
                             />
+                            {form.watch(`items.${index}.envelopePrintType`) === "Print" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.envelopePrintMethod`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Print Method</FormLabel>
+                                    <Select onValueChange={f.onChange} value={f.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-envelope-print-method-${index}`}>
+                                          <SelectValue placeholder="Select method" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {envelopePrintMethods.map((method) => (
+                                          <SelectItem key={method} value={method}>
+                                            {method}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            {form.watch(`items.${index}.envelopePrintType`) === "Print" && form.watch(`items.${index}.envelopePrintMethod`) === "Other" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.envelopeCustomPrint`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Custom Print Method</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Enter custom print method"
+                                        {...f}
+                                        value={f.value || ""}
+                                        data-testid={`input-envelope-custom-print-${index}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
                           </>
                         )}
 
@@ -513,34 +628,10 @@ export default function Home() {
                           <>
                             <FormField
                               control={form.control}
-                              name={`items.${index}.doreType`}
-                              render={({ field: f }) => (
-                                <FormItem>
-                                  <FormLabel>Dore Specifications</FormLabel>
-                                  <Select onValueChange={f.onChange} value={f.value}>
-                                    <FormControl>
-                                      <SelectTrigger data-testid={`select-dore-type-${index}`}>
-                                        <SelectValue placeholder="Select handle" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {doreTypes.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                          {type}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
                               name={`items.${index}.bagSize`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Size</FormLabel>
+                                  <FormLabel>Bag Size</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-bag-size-${index}`}>
@@ -560,18 +651,158 @@ export default function Home() {
                               )}
                             />
                             {form.watch(`items.${index}.bagSize`) === "Other" && (
+                              <>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.bagHeight`}
+                                  render={({ field: f }) => (
+                                    <FormItem>
+                                      <FormLabel>Height (cm)</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0.1"
+                                          step="0.1"
+                                          {...f}
+                                          onChange={(e) => f.onChange(parseFloat(e.target.value) || 1)}
+                                          data-testid={`input-bag-height-${index}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.bagWidth`}
+                                  render={({ field: f }) => (
+                                    <FormItem>
+                                      <FormLabel>Width (cm)</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0.1"
+                                          step="0.1"
+                                          {...f}
+                                          onChange={(e) => f.onChange(parseFloat(e.target.value) || 1)}
+                                          data-testid={`input-bag-width-${index}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.bagGusset`}
+                                  render={({ field: f }) => (
+                                    <FormItem>
+                                      <FormLabel>Gusset (cm)</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          type="number"
+                                          min="0.1"
+                                          step="0.1"
+                                          {...f}
+                                          onChange={(e) => f.onChange(parseFloat(e.target.value) || 1)}
+                                          data-testid={`input-bag-gusset-${index}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </>
+                            )}
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.doreType`}
+                              render={({ field: f }) => (
+                                <FormItem>
+                                  <FormLabel>Handle (Dori) Specification</FormLabel>
+                                  <Select onValueChange={f.onChange} value={f.value}>
+                                    <FormControl>
+                                      <SelectTrigger data-testid={`select-dore-type-${index}`}>
+                                        <SelectValue placeholder="Select handle" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {doreTypes.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                          {type}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            {form.watch(`items.${index}.doreType`) === "Ribbon" && (
                               <FormField
                                 control={form.control}
-                                name={`items.${index}.otherBagSize`}
+                                name={`items.${index}.handleColor`}
                                 render={({ field: f }) => (
                                   <FormItem>
-                                    <FormLabel>Specify Size</FormLabel>
+                                    <FormLabel>Handle Color</FormLabel>
+                                    <Select onValueChange={f.onChange} value={f.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-handle-color-${index}`}>
+                                          <SelectValue placeholder="Select color" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {ribbonColors.map((color) => (
+                                          <SelectItem key={color} value={color}>
+                                            {color}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            {form.watch(`items.${index}.doreType`) === "Rope" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.handleColor`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Handle Color</FormLabel>
+                                    <Select onValueChange={f.onChange} value={f.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-handle-color-${index}`}>
+                                          <SelectValue placeholder="Select color" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {ropeColors.map((color) => (
+                                          <SelectItem key={color} value={color}>
+                                            {color}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            {(form.watch(`items.${index}.doreType`) === "Ribbon" || form.watch(`items.${index}.doreType`) === "Rope") && form.watch(`items.${index}.handleColor`) === "Other" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.customHandleColor`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Custom Handle Color</FormLabel>
                                     <FormControl>
                                       <Input
-                                        placeholder="Enter custom size"
+                                        placeholder="Enter custom color"
                                         {...f}
                                         value={f.value || ""}
-                                        data-testid={`input-other-bag-size-${index}`}
+                                        data-testid={`input-custom-handle-color-${index}`}
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -584,7 +815,7 @@ export default function Home() {
                               name={`items.${index}.bagPrintType`}
                               render={({ field: f }) => (
                                 <FormItem>
-                                  <FormLabel>Type</FormLabel>
+                                  <FormLabel>Printing Type</FormLabel>
                                   <Select onValueChange={f.onChange} value={f.value}>
                                     <FormControl>
                                       <SelectTrigger data-testid={`select-bag-print-${index}`}>
@@ -603,6 +834,71 @@ export default function Home() {
                                 </FormItem>
                               )}
                             />
+                            {form.watch(`items.${index}.bagPrintType`) === "Print" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.printMethod`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Print Method</FormLabel>
+                                    <Select onValueChange={f.onChange} value={f.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-print-method-${index}`}>
+                                          <SelectValue placeholder="Select method" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {bagPrintMethods.map((method) => (
+                                          <SelectItem key={method} value={method}>
+                                            {method}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            {form.watch(`items.${index}.bagPrintType`) === "Print" && form.watch(`items.${index}.printMethod`) === "Single Color" && (
+                              <FormItem>
+                                <FormLabel>Print Technique</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    value="Screen Printing"
+                                    readOnly
+                                    className="bg-gray-100"
+                                    data-testid={`input-screen-printing-${index}`}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                            {form.watch(`items.${index}.bagPrintType`) === "Print" && form.watch(`items.${index}.printMethod`) === "Multi Color" && (
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.laminationType`}
+                                render={({ field: f }) => (
+                                  <FormItem>
+                                    <FormLabel>Lamination</FormLabel>
+                                    <Select onValueChange={f.onChange} value={f.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-lamination-${index}`}>
+                                          <SelectValue placeholder="Select lamination" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {laminationTypes.map((type) => (
+                                          <SelectItem key={type} value={type}>
+                                            {type}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
                           </>
                         )}
 

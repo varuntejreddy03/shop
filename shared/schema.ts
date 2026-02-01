@@ -15,6 +15,8 @@ export const boxItemSchema = z.object({
   breadth: z.number().min(0.1, "Breadth must be at least 0.1"),
   height: z.number().min(0.1, "Height must be at least 0.1"),
   printType: z.string().min(1, "Print type is required"),
+  color: z.string().optional(),
+  details: z.string().optional(),
   quantity: z.number().int().positive("Quantity must be positive"),
   price: z.number().nonnegative("Price must be non-negative"),
 });
@@ -22,42 +24,35 @@ export const boxItemSchema = z.object({
 export const envelopeItemSchema = z.object({
   itemType: z.literal(ItemType.ENVELOPE),
   envelopeSize: z.string().min(1, "Envelope size is required"),
-  otherEnvelopeSize: z.string().optional(),
+  envelopeHeight: z.number().optional(),
+  envelopeWidth: z.number().optional(),
   envelopePrintType: z.string().min(1, "Print type is required"),
+  envelopePrintMethod: z.string().optional(),
+  envelopeCustomPrint: z.string().optional(),
   quantity: z.number().int().positive("Quantity must be positive"),
   price: z.number().nonnegative("Price must be non-negative"),
-}).refine((data) => {
-  if (data.envelopeSize === "Other") {
-    return data.otherEnvelopeSize && data.otherEnvelopeSize.trim().length > 0;
-  }
-  return true;
-}, {
-  message: "Please specify the envelope size",
-  path: ["otherEnvelopeSize"],
 });
 
 export const bagItemSchema = z.object({
   itemType: z.literal(ItemType.BAG),
-  doreType: z.string().min(1, "Dore type is required"),
   bagSize: z.string().min(1, "Bag size is required"),
-  otherBagSize: z.string().optional(),
+  bagHeight: z.number().optional(),
+  bagWidth: z.number().optional(),
+  bagGusset: z.number().optional(),
+  doreType: z.string().min(1, "Handle specification is required"),
+  handleColor: z.string().optional(),
+  customHandleColor: z.string().optional(),
   bagPrintType: z.string().min(1, "Print type is required"),
+  printMethod: z.string().optional(),
+  laminationType: z.string().optional(),
   quantity: z.number().int().positive("Quantity must be positive"),
   price: z.number().nonnegative("Price must be non-negative"),
-}).refine((data) => {
-  if (data.bagSize === "Other") {
-    return data.otherBagSize && data.otherBagSize.trim().length > 0;
-  }
-  return true;
-}, {
-  message: "Please specify the bag size",
-  path: ["otherBagSize"],
 });
 
-export const orderItemSchema = z.discriminatedUnion("itemType", [
+export const orderItemSchema = z.union([
   boxItemSchema,
-  envelopeItemSchema.innerType(),
-  bagItemSchema.innerType(),
+  envelopeItemSchema,
+  bagItemSchema,
 ]);
 
 export const createOrderSchema = z.object({
@@ -65,27 +60,6 @@ export const createOrderSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
   orderDate: z.string().min(1, "Order date is required"),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
-}).superRefine((data, ctx) => {
-  data.items.forEach((item, index) => {
-    if (item.itemType === "envelope" && item.envelopeSize === "Other") {
-      if (!item.otherEnvelopeSize || item.otherEnvelopeSize.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Please specify the envelope size",
-          path: ["items", index, "otherEnvelopeSize"],
-        });
-      }
-    }
-    if (item.itemType === "bag" && item.bagSize === "Other") {
-      if (!item.otherBagSize || item.otherBagSize.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Please specify the bag size",
-          path: ["items", index, "otherBagSize"],
-        });
-      }
-    }
-  });
 });
 
 export type BoxItem = z.infer<typeof boxItemSchema>;
