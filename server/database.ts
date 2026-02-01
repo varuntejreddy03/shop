@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
-import type { Customer, Order, OrderItemRecord, OrderItem, CreateOrderInput } from "@shared/schema";
+import type { Customer, Order, OrderItemRecord, OrderItem, CreateOrderInput } from "../shared/schema";
 
 const DB_PATH = path.join(process.cwd(), "data", "orders.db");
 
@@ -38,6 +38,7 @@ function initSchema() {
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL,
+      customer_name TEXT NOT NULL,
       order_date TEXT NOT NULL,
       total_amount REAL NOT NULL DEFAULT 0,
       pdf_path TEXT,
@@ -127,9 +128,9 @@ class SQLiteDatabase implements IDatabase {
     const totalAmount = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const orderStmt = db.prepare(
-      "INSERT INTO orders (customer_id, order_date, total_amount) VALUES (?, ?, ?) RETURNING *"
+      "INSERT INTO orders (customer_id, customer_name, order_date, total_amount) VALUES (?, ?, ?, ?) RETURNING *"
     );
-    const orderRow = orderStmt.get(customer.id, input.orderDate, totalAmount) as any;
+    const orderRow = orderStmt.get(customer.id, customer.name, input.orderDate, totalAmount) as any;
 
     const itemStmt = db.prepare(
       "INSERT INTO order_items (order_id, item_type, item_data, quantity, price) VALUES (?, ?, ?, ?, ?)"
