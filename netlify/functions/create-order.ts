@@ -59,6 +59,9 @@ async function generatePdf(order: Order, customer: Customer, items: OrderItemRec
   const margin = 50;
   let y = height - margin - 50;
 
+  page.drawText("Sri Padmavathi Sales", { x: margin, y, size: 20, font: bold, color: rgb(0, 0, 0) });
+  page.drawText("\u2122", { x: margin + 178, y: y + 6, size: 10, font: bold, color: rgb(0, 0, 0) });
+  y -= 28;
   page.drawText("PRODUCTION ORDER", { x: margin, y, size: 16, font: bold, color: rgb(0, 0, 0) });
   y -= 30;
   page.drawText(`Order #: ${order.id}`, { x: margin, y, size: 12, font: regular, color: rgb(0, 0, 0) });
