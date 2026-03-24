@@ -5,7 +5,6 @@ import Login from "./pages/login";
 import AdminLayout from "./components/AdminLayout";
 import Home from "./pages/home";
 import CustomerList from "./pages/customerList";
-import Reports from "./pages/reports";
 
 const queryClient = new QueryClient();
 
@@ -71,9 +70,6 @@ function App() {
           </Route>
           <Route path="/admin/customers">
             <ProtectedRoute component={CustomerList} onLogout={handleLogout} />
-          </Route>
-          <Route path="/admin/reports">
-            <ProtectedRoute component={Reports} onLogout={handleLogout} />
           </Route>
           <Route path="/">
             {isLoggedIn ? (

@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  Package, 
-  Users, 
-  FileText, 
-  Settings, 
-  LogOut,
-  Menu,
-  X
-} from "lucide-react";
+import { Package, Users, LogOut, Menu } from "lucide-react";
 
 export default function AdminLayout({ children, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,7 +9,6 @@ export default function AdminLayout({ children, onLogout }) {
   const menuItems = [
     { id: "orders", label: "Create Orders", icon: Package, path: "/admin/orders" },
     { id: "customers", label: "Customers", icon: Users, path: "/admin/customers" },
-    { id: "reports", label: "Reports", icon: FileText, path: "/admin/reports" },
   ];
 
   const handleLogout = () => {
@@ -36,7 +26,10 @@ export default function AdminLayout({ children, onLogout }) {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex items-center h-16 px-6 border-b">
-          <span className="text-lg font-semibold">Order System</span>
+          <div>
+            <span className="text-base font-bold text-gray-900">Sri Padmavathi Sales</span>
+            <span className="text-xs text-gray-400 ml-1">™</span>
+          </div>
         </div>
         
         <nav className="flex-1 px-3 py-4">

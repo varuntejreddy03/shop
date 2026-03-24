@@ -64,36 +64,23 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
-      
-      // Get PDF as blob
-      const pdfBlob = await response.blob();
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      
-      toast({
-        title: "Order Created Successfully",
-        description: "Production order PDF generated and ready for printing.",
-      });
-      
-      // Auto-open PDF for printing
-      const pdfWindow = window.open(blobUrl, "_blank");
-      if (pdfWindow) {
-        pdfWindow.onload = () => {
-          setTimeout(() => pdfWindow.print(), 500);
-        };
-      }
-      
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      toast({ title: "Order Created Successfully", description: "Opening PDF for print." });
+
+      const w = window.open(url, "_blank");
+      if (w) w.onload = () => setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 500);
+
       form.reset();
     } catch (error: any) {
-      toast({
-        title: "Error Creating Order",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error Creating Order", description: error.message || "Something went wrong.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

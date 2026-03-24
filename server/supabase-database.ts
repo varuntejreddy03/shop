@@ -10,11 +10,15 @@ export interface IDatabase {
   createCustomer(name: string, phone: string): Promise<Customer>;
   getCustomerById(id: number): Promise<Customer | undefined>;
   findCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  getAllCustomers(): Promise<Customer[]>;
+  updateCustomer(id: number, name: string, phone: string): Promise<void>;
+  deleteCustomer(id: number): Promise<void>;
   
   createOrder(input: CreateOrderInput): Promise<{ order: Order; customer: Customer }>;
   getOrderById(id: number): Promise<Order | undefined>;
   getOrderWithItems(id: number): Promise<{ order: Order; customer: Customer; items: OrderItemRecord[] } | undefined>;
-  
+  getOrdersByCustomerId(id: number): Promise<Order[]>;
+  updateOrder(id: number, input: CreateOrderInput): Promise<void>;
   getAllOrders(): Promise<Order[]>;
 }
 
@@ -188,6 +192,95 @@ class SupabaseDatabase implements IDatabase {
       pdfPath: null,
       createdAt: row.created_at,
     }));
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map((row) => ({
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async updateCustomer(id: number, name: string, phone: string): Promise<void> {
+    const { error } = await supabase
+      .from('customers')
+      .update({ name, phone })
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async deleteCustomer(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async getOrdersByCustomerId(customerId: number): Promise<Order[]> {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map((row) => ({
+      id: row.id,
+      customerId: row.customer_id,
+      orderDate: row.order_date,
+      totalAmount: row.total_amount,
+      pdfPath: null,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async updateOrder(id: number, input: CreateOrderInput): Promise<void> {
+    const totalAmount = input.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ order_date: input.orderDate, total_amount: totalAmount })
+      .eq('id', id);
+
+    if (orderError) throw orderError;
+
+    // Delete existing items and re-insert
+    const { error: deleteError } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('order_id', id);
+
+    if (deleteError) throw deleteError;
+
+    const orderItems = input.items.map(item => {
+      const { itemType, quantity, price, ...itemData } = item;
+      return {
+        order_id: id,
+        item_type: itemType,
+        item_data: JSON.stringify(itemData),
+        quantity,
+        price,
+      };
+    });
+
+    const { error: insertError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (insertError) throw insertError;
   }
 }
 

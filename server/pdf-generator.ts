@@ -1,25 +1,11 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import fs from "fs";
-import path from "path";
-import type { Customer, Order, OrderItemRecord, PdfInfo } from "../shared/schema";
-
-const PDF_OUTPUT_DIR = path.join(process.cwd(), "generated-pdfs");
-
-function ensurePdfDirectory() {
-  if (!fs.existsSync(PDF_OUTPUT_DIR)) {
-    fs.mkdirSync(PDF_OUTPUT_DIR, { recursive: true });
-  }
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-}
+import type { Customer, Order, OrderItemRecord } from "../shared/schema";
 
 async function generateUnifiedProductionPdf(
   order: Order,
   customer: Customer,
   items: OrderItemRecord[]
-): Promise<{ filename: string; bytes: Uint8Array }> {
+): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4
   const { width, height } = page.getSize();
@@ -29,6 +15,23 @@ async function generateUnifiedProductionPdf(
 
   const margin = 50;
   let y = height - margin - 50; // Start higher from top
+
+  // Company name
+  page.drawText("Sri Padmavathi Sales", {
+    x: margin,
+    y,
+    size: 20,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  page.drawText("\u2122", {
+    x: margin + 178,
+    y: y + 6,
+    size: 10,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  y -= 28;
 
   // Title
   page.drawText("PRODUCTION ORDER", {
@@ -289,25 +292,13 @@ async function generateUnifiedProductionPdf(
     color: rgb(0, 0, 0),
   });
 
-  const pdfBytes = await pdfDoc.save();
-  const filename = `production_order_${order.id}_${sanitizeFilename(customer.name)}.pdf`;
-
-  return { filename, bytes: pdfBytes };
+  return await pdfDoc.save();
 }
 
-export async function generateOrderPdfs(
+export async function generateOrderPdfBytes(
   order: Order,
   customer: Customer,
   items: OrderItemRecord[]
-): Promise<{ bytes: Uint8Array; filename: string }> {
-  const result = await generateUnifiedProductionPdf(order, customer, items);
-  return result;
-}
-
-export function getPdfPath(filename: string): string {
-  return path.join(PDF_OUTPUT_DIR, filename);
-}
-
-export function pdfExists(filename: string): boolean {
-  return fs.existsSync(getPdfPath(filename));
+): Promise<Uint8Array> {
+  return generateUnifiedProductionPdf(order, customer, items);
 }

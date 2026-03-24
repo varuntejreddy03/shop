@@ -1,9 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import path from "path";
-import fs from "fs";
 import { database } from "./supabase-database";
-import { generateOrderPdfs, getPdfPath, pdfExists } from "./pdf-generator";
+import { generateOrderPdfBytes } from "./pdf-generator";
 import { createOrderSchema } from "../shared/schema";
 import { fromZodError } from "zod-validation-error";
 
@@ -24,24 +22,20 @@ export async function registerRoutes(
       }
 
       const input = validationResult.data;
-
       const { order, customer } = await database.createOrder(input);
-
       const orderWithItems = await database.getOrderWithItems(order.id);
-      if (!orderWithItems) {
-        throw new Error("Failed to retrieve order after creation");
-      }
+      if (!orderWithItems) throw new Error("Failed to retrieve order after creation");
 
-      const pdfData = await generateOrderPdfs(
+      const pdfBytes = await generateOrderPdfBytes(
         orderWithItems.order,
         orderWithItems.customer,
         orderWithItems.items
       );
 
-      // Return PDF as blob response
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${pdfData.filename}"`);
-      return res.send(Buffer.from(pdfData.bytes));
+      const filename = `order_${order.id}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      return res.send(Buffer.from(pdfBytes));
     } catch (error) {
       return res.status(500).json({
         success: false,
@@ -50,26 +44,74 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/pdf/:filename", (req: Request, res: Response) => {
+  app.get("/api/orders/:id/print", async (req: Request, res: Response) => {
     try {
-      const filename = req.params.filename as string;
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid order ID" });
 
-      if (!filename.endsWith(".pdf") || filename.includes("..")) {
-        return res.status(400).json({ message: "Invalid filename" });
-      }
+      const orderData = await database.getOrderWithItems(id);
+      if (!orderData) return res.status(404).json({ message: "Order not found" });
 
-      if (!pdfExists(filename)) {
-        return res.status(404).json({ message: "PDF not found" });
-      }
-
-      const filePath = getPdfPath(filename);
+      const pdfBytes = await generateOrderPdfBytes(orderData.order, orderData.customer, orderData.items);
+      const filename = `order_${id}.pdf`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
-
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
+      return res.send(Buffer.from(pdfBytes));
     } catch (error) {
-      return res.status(500).json({ message: "Error serving PDF" });
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  app.put("/api/orders/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid order ID" });
+
+      await database.updateOrder(id, req.body);
+      return res.json({ success: true, orderId: id });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+app.get("/api/customers", async (req: Request, res: Response) => {
+    try {
+      const customers = await database.getAllCustomers();
+      return res.json({ success: true, customers });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  app.put("/api/customers/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const { name, phone } = req.body;
+      if (!name || !phone) return res.status(400).json({ message: "Name and phone required" });
+      await database.updateCustomer(id, name, phone);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  app.delete("/api/customers/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      await database.deleteCustomer(id);
+      return res.json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
+    }
+  });
+
+  app.get("/api/customers/:id/orders", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id as string);
+      const orders = await database.getOrdersByCustomerId(id);
+      return res.json({ success: true, orders });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Internal server error" });
     }
   });
 
