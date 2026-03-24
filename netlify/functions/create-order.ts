@@ -11,7 +11,7 @@ const supabase = createClient(
 );
 
 async function findOrCreateCustomer(name: string, phone: string): Promise<Customer> {
-  const { data: existing } = await supabase.from("customers").select("*").eq("phone", phone).single();
+  const { data: existing } = await supabase.from("customers").select("*").eq("phone", phone).maybeSingle();
   if (existing) return { id: existing.id, name: existing.name, phone: existing.phone, createdAt: existing.created_at };
 
   const { data, error } = await supabase.from("customers").insert({ name, phone }).select().single();
